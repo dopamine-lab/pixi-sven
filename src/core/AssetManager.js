@@ -2,10 +2,10 @@ import { Howl } from 'howler';
 import {Loader} from 'pixi.js';
 import config from '../config';
 
-const context = require.context('../assets', true, /\.(jpg|png|wav)$/im);
+const context = require.context('../assets', true, /\.(jpg|png|wav|mp3)$/im);
 
 const IMG_EXTENSIONS = ['jpeg', 'jpg', 'png'];
-const SOUND_EXTENSIONS = ['wav', 'ogg', 'm4a'];
+const SOUND_EXTENSIONS = ['wav', 'ogg', 'm4a', 'mp3'];
 
 /**
  * Global asset manager to help streamline asset usage in your game.

@@ -3,6 +3,10 @@ import svenAnimations from './svenAnimations';
 import sheepAnimations from './sheepAnimations';
 import Entity from './Entity';
 import Map from './Map';
+import Sven from './Sven';
+import gsap from 'gsap';
+import ScoreBoard from './ScoreBoard';
+
 
 /**
  * Main game stage, manages scenes/levels.
@@ -14,6 +18,8 @@ export default class Game extends Container {
     super();
     this._pressedKeys = [];
     this._map = new Map();
+    // Initialize the ScoreBoard
+    this._scoreBoard = new ScoreBoard(); 
     this._herd = [];
   }
 
@@ -21,6 +27,8 @@ export default class Game extends Container {
     this._attachKeyboardListeners();
 
     this.addChild(Sprite.from('background'));
+    // Add the scoreBoard text to the game
+    this.addChild(this._scoreBoard.score);
     this._createSven();
     this._createHerd();
   }
@@ -29,7 +37,7 @@ export default class Game extends Container {
     const svenMapPos = this._map.posById(this._map.IDS.SVEN)[0];
     const svenCoords = this._map.coordsFromPos(svenMapPos);
 
-    this._sven = new Entity(svenAnimations);
+    this._sven = new Sven(svenAnimations);
     this._sven.init(svenCoords);
     this.addChild(this._sven.anim);
   }
@@ -58,10 +66,8 @@ export default class Game extends Container {
 
 
   _onKeyDown(e) {
-    // If the key is already pressed return, we wan't to have only one key pressed by a time
     if (this._pressedKeys.includes(e.code)) return;
     
-    // On key press collect the pressed keys and call svenAction method
     this._pressedKeys.push(e.code);
     this._svenAction();
   }
@@ -71,10 +77,8 @@ export default class Game extends Container {
   }
 
   _svenAction() {
-    // never interrupt Sven's movemnt
     if (this._sven.moving) return;
 
-    // should we try to move Sven
     const directionKey = this._pressedKeys.find(k => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k));
 
     if (directionKey) {
@@ -82,28 +86,76 @@ export default class Game extends Container {
       return this._svenMove(direction);
     }
 
-    // If no key is pressed stand still
+    if (this._pressedKeys.includes('Space')) {
+      return this._svenHump();
+    }
+
     this._sven.standStill();
   }
 
   async _svenMove(direction) {
-    // take current and next position
     let oldPos = this._map.posById(this._map.IDS.SVEN)[0];
     let newPos = this._map.getDestination(oldPos, direction);
 
-    // if there is a collision or sven is out of bounds make him stand still
     if (this._map.outOfBounds(newPos) || this._map.collide(newPos)) return this._sven.standStill(direction);
 
-    // take the next coordinates
     const targetPos = this._map.coordsFromPos(newPos);
-    // Move sven based on the direction and position
     await this._sven.move(targetPos, direction);
 
-    // After the move is done , update the map positions
     this._map.setTileOnMap(oldPos, this._map.IDS.EMPTY);
     this._map.setTileOnMap(newPos, this._map.IDS.SVEN);
 
-    // Call svenAction to check if there is another key pressed
     this._svenAction();
   }
+
+  _svenHump() {
+    const svenDirection = this._sven.direction;
+    const svenPos = this._map.posById(this._map.IDS.SVEN)[0];
+    const targetPos = this._map.getDestination(svenPos, svenDirection);
+
+    const hitSheep = this._map.getTile(targetPos) === this._map.IDS.SHEEP;
+    if (!hitSheep) return this._sven.standStill();
+
+    const sheep = this._herd.find(s => s.row === targetPos.row && s.col === targetPos.col);
+    if (this._sven.direction !== sheep.direction) return this._sven.standStill();
+
+    if (this._sven.isHumping) return this._sven.standStill();
+
+    if (sheep.humpedCount >= 4) return this._sven.standStill();
+
+    sheep.anim.visible = false;
+
+    // Update the scoreboard
+    this._scoreBoard.update(3); // 3 points
+
+    this._sven.hump(() => {
+      sheep.humpedCount++;
+      sheep.anim.visible = true;
+      this._sven.standStill();
+      if (sheep.humpedCount >= 4) { this._removeSheep(sheep)}
+
+      this._svenAction();
+    });
+  }
+
+  _removeSheep(sheep) {
+    gsap.to(sheep.anim, {
+      alpha: 0.4,
+      duration: 0.5,
+      repeat: 3,
+      yoyo: true,
+      onComplete: () => {
+        sheep.anim.textures = sheep.animations['disappear'];
+        sheep.anim.gotoAndPlay(0);
+        sheep.anim.onComplete = () => {
+          const sheepIndex = this._herd.indexOf(sheep);
+          this._herd.splice(sheepIndex, 1);
+          this.removeChild(sheep.anim);
+          this._map.setTileOnMap({row: sheep.row, col: sheep.col}, this._map.IDS.EMPTY);
+          sheep.anim.onComplete = null; // Detach the listener
+        };
+      }
+    });
+  }
+
 }

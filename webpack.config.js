@@ -20,7 +20,7 @@ module.exports = {
         use: "raw-loader"
       },
       {
-        test: /\.(gif|png|jpe?g|svg|xml|wav)$/i,
+        test: /\.(gif|png|jpe?g|svg|xml|wav|mp3)$/i,
         use: "file-loader"
       }
     ]

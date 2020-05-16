@@ -1,5 +1,6 @@
 import { Container, Sprite } from 'pixi.js';
 import svenAnimations from './svenAnimations';
+import sheepAnimations from './sheepAnimations';
 import Entity from './Entity';
 import Map from './Map';
 
@@ -13,6 +14,7 @@ export default class Game extends Container {
     super();
     // Initialize our map
     this._map = new Map();
+    this._herd = [];
   }
 
   async start() {
@@ -20,6 +22,7 @@ export default class Game extends Container {
 
     this.addChild(Sprite.from('background'));
     this._createSven();
+    this._createHerd();
   }
 
   _createSven() {
@@ -30,6 +33,24 @@ export default class Game extends Container {
     this._sven = new Entity(svenAnimations);
     this._sven.init(svenCoords);
     this.addChild(this._sven.anim);
+  }
+
+  _createHerd() {
+    // use the map method to display all the sheeps for the current level
+    const sheepPositions = this._map.posById(this._map.IDS.SHEEP);
+    
+    sheepPositions.forEach(sheepPosition => {
+      const sheepCoords = this._map.coordsFromPos(sheepPosition);
+      const sheep = new Entity(sheepAnimations);
+      sheep.init(sheepCoords);
+
+      sheep.col = sheepPosition.col;
+      sheep.row = sheepPosition.row; 
+      sheep.humpedCount = 0;
+
+      this.addChild(sheep.anim);
+      this._herd.push(sheep);
+    });
   }
 
   _attachKeyboardListeners() {
